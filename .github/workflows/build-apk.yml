@@ -12,38 +12,33 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up Java
-        uses: actions/setup-java@v4
-        with:
-          distribution: 'temurin'
-          java-version: '17'
-
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.9'
 
-      - name: Install Android SDK
-        uses: android-actions/setup-android@v3
-
       - name: Install system dependencies
         run: |
           sudo apt update
-          sudo apt install -y git zip unzip autoconf libtool pkg-config zlib1g-dev libncurses5-dev libncursesw5-dev cmake libffi-dev libssl-dev
+          sudo apt install -y git zip unzip openjdk-17-jdk autoconf libtool pkg-config zlib1g-dev libncurses5-dev libncursesw5-dev cmake libffi-dev libssl-dev
 
       - name: Install Python dependencies
         run: |
           pip install --upgrade pip
           pip install cython buildozer
 
-      - name: Accept all licenses and install build-tools
+      - name: Install Android SDK
         run: |
-          yes | sdkmanager --licenses || true
-          sdkmanager "build-tools;34.0.0" "platform-tools" "platforms;android-34"
-          echo "$ANDROID_SDK_ROOT/build-tools/34.0.0" >> $GITHUB_PATH
-
-      - name: Verify aidl installation
-        run: which aidl && aidl --version || echo "AIDL check failed but continuing"
+          mkdir -p $HOME/.buildozer/android/platform
+          cd $HOME/.buildozer/android/platform
+          wget https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip
+          unzip commandlinetools-linux-9477386_latest.zip
+          mkdir -p android-sdk/cmdline-tools
+          mv cmdline-tools android-sdk/cmdline-tools/latest
+          export ANDROID_HOME=$HOME/.buildozer/android/platform/android-sdk
+          export PATH=$PATH:$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools
+          yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses
+          $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "platform-tools" "platforms;android-31" "build-tools;31.0.0"
 
       - name: Build APK
         run: |
@@ -54,8 +49,8 @@ jobs:
           sed -i 's/requirements = python3,kivy/requirements = python3,pygame,requests,websocket-client/' buildozer.spec
           sed -i 's/#android.permissions = .*/android.permissions = INTERNET/' buildozer.spec
           sed -i 's/#android.accept_sdk_license = .*/android.accept_sdk_license = True/' buildozer.spec
-          # Явно указываем путь к build-tools
-          export PATH=$PATH:$ANDROID_SDK_ROOT/build-tools/34.0.0
+          export ANDROID_HOME=$HOME/.buildozer/android/platform/android-sdk
+          export PATH=$PATH:$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools:$ANDROID_HOME/build-tools/31.0.0
           buildozer android debug
 
       - name: Upload APK
