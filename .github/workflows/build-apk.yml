@@ -27,6 +27,14 @@ jobs:
           pip install --upgrade pip
           pip install cython buildozer
 
+      - name: Accept licenses manually
+        run: |
+          mkdir -p ~/.android
+          touch ~/.android/repositories.cfg
+          # Создаем файл с принятием всех лицензий
+          echo "count=0" > ~/.android/repositories.cfg
+          for i in {1..100}; do echo "lic_count=$i" >> ~/.android/repositories.cfg; done
+
       - name: Build APK
         run: |
           buildozer init
@@ -36,8 +44,8 @@ jobs:
           sed -i 's/requirements = python3,kivy/requirements = python3,pygame,requests,websocket-client/' buildozer.spec
           sed -i 's/#android.permissions = .*/android.permissions = INTERNET/' buildozer.spec
           sed -i 's/#android.accept_sdk_license = .*/android.accept_sdk_license = True/' buildozer.spec
-          # Эта команда запускает сборку и автоматически отвечает "y" на все вопросы
-          yes | buildozer android debug
+          # Самое главное - запускаем без yes
+          buildozer android debug
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
